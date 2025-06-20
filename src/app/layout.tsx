@@ -7,6 +7,7 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'Excel Formula Generator',
   description: 'Generate Excel formulas with ease',
+  metadataBase: new URL('https://excel-formula-generator.vercel.app'),
 }
 
 export default function RootLayout({
