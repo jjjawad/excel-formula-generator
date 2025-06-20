@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // App Router is now stable and enabled by default
+  allowedDevOrigins: ["http://192.168.70.119:3002"],
 }
 
 module.exports = nextConfig 
