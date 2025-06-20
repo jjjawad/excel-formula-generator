@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import toast from 'react-hot-toast';
 
 interface GeneratorProps {
   onGenerationSuccess: () => void;
@@ -53,7 +54,7 @@ export default function Generator({ onGenerationSuccess }: GeneratorProps) {
   
   const handleCopy = (textToCopy: string) => {
     navigator.clipboard.writeText(textToCopy);
-    // You can add a toast notification here later to show "Copied!"
+    toast.success('Formula copied to clipboard!');
   };
 
   return (
