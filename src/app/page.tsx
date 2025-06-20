@@ -16,6 +16,7 @@ export default function HomePage() {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isUpgrading, setIsUpgrading] = useState(false);
 
   const getProfile = useCallback(async (user: User) => {
     try {
@@ -63,14 +64,51 @@ export default function HomePage() {
 
   const USAGE_LIMIT = 10;
 
+  const handleUpgrade = async () => {
+    setIsUpgrading(true);
+    try {
+      const response = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+      });
+      const { url, error } = await response.json();
+      if (error) {
+        throw new Error(error);
+      }
+      if (url) {
+        window.location.href = url; // Redirect to Stripe Checkout
+      }
+    } catch (error) {
+      console.error('Failed to create checkout session:', error);
+      alert('Could not start the upgrade process. Please try again.');
+    } finally {
+      setIsUpgrading(false);
+    }
+  };
+
   const renderUsageCounter = () => {
     if (!profile) return null;
-    if (profile.plan_type !== 'free') return <p>You are on the Pro plan. Unlimited generations!</p>;
+    if (profile.plan_type === 'pro') {
+      return <p className="text-lg font-medium text-green-600">You are on the Pro plan. Unlimited generations!</p>;
+    }
+
+    const isLimitReached = profile.usage_count >= USAGE_LIMIT;
 
     return (
-      <p className="text-sm text-gray-600">
-        You have used {profile.usage_count} of {USAGE_LIMIT} free generations.
-      </p>
+      <div className="text-center p-4 rounded-lg bg-gray-100 border">
+        <p className={`text-sm ${isLimitReached ? 'text-red-600 font-bold' : 'text-gray-600'}`}>
+          You have used {profile.usage_count} of {USAGE_LIMIT} free generations.
+        </p>
+        {isLimitReached && (
+          <p className="text-red-600 font-bold mt-1">Please upgrade to continue.</p>
+        )}
+        <button
+          onClick={handleUpgrade}
+          disabled={isUpgrading}
+          className="mt-4 px-6 py-2 bg-green-600 text-white font-semibold rounded-md hover:bg-green-700 transition-colors disabled:opacity-50"
+        >
+          {isUpgrading ? 'Redirecting...' : 'Upgrade to Pro ($7/mo)'}
+        </button>
+      </div>
     );
   };
 
