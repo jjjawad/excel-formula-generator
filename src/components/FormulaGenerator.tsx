@@ -105,10 +105,6 @@ export function FormulaGenerator({ profile, onGenerationSuccess }: FormulaGenera
     return <div className="text-center p-8">Loading profile...</div>;
   }
   
-  if (profile.plan_type === 'pro') {
-    // Pro user view
-  }
-
   return (
     <section className="container py-8">
       <Card className="max-w-4xl mx-auto">
@@ -153,7 +149,7 @@ export function FormulaGenerator({ profile, onGenerationSuccess }: FormulaGenera
           
           {limitReached && (
             <div className="mt-6 text-center p-4 rounded-lg bg-destructive/10 border border-destructive/20">
-                <h3 className="font-semibold text-destructive">You've reached your free limit.</h3>
+                <h3 className="font-semibold text-destructive">You&apos;ve reached your free limit.</h3>
                 <p className="text-sm text-muted-foreground mt-1">Please upgrade to continue generating formulas.</p>
                 <Button onClick={handleUpgrade} disabled={isUpgrading} className="mt-4">
                     {isUpgrading ? 'Redirecting...' : 'Upgrade to Pro ($7/mo)'}
