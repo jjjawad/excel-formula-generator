@@ -13,7 +13,7 @@ export default function AuthForm() {
         appearance={{ theme: ThemeSupa }}
         providers={['google']}
         theme="light"
-        redirectTo="https://excel-formula-generator-sigma.vercel.app/"
+        redirectTo={process.env.NEXT_PUBLIC_BASE_URL}
       />
     </div>
   );
