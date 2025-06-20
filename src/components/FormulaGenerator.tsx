@@ -218,7 +218,7 @@ export function FormulaGenerator() {
             
             {!hasCredits && (
               <div className="mt-6 text-center p-4 rounded-lg bg-destructive/10 border border-destructive/20">
-                  <h3 className="font-semibold text-destructive">You've reached your credit limit.</h3>
+                  <h3 className="font-semibold text-destructive">You&apos;ve reached your credit limit.</h3>
                   <p className="text-sm text-muted-foreground mt-1">{session ? 'Please upgrade to continue generating formulas.' : 'Please sign in for more free credits.'}</p>
                   <Button onClick={session ? handleUpgrade : () => setShowAuthModal(true)} disabled={isUpgrading} className="mt-4">
                       {session ? (isUpgrading ? 'Redirecting...' : 'Upgrade to Pro ($7/mo)') : 'Sign In'}
