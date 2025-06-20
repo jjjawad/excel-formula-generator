@@ -1,45 +1,55 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
-import { createClient } from '@supabase/supabase-js';
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers';
 
-// Initialize the OpenAI client with the API key from environment variables
+// Initialize the OpenAI client
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Create a Supabase client with the service role key for admin-level access
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
 const USAGE_LIMIT = 10;
 
 export async function POST(req: Request) {
+  const cookieStore = await cookies();
+
+  // Create a Supabase client configured to use cookies. This is the modern way to handle auth in API routes.
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value
+        },
+      },
+    }
+  );
+
   try {
-    // 1. Extract the user's prompt from the request body
-    const { userPrompt } = await req.json();
+    // 1. Get the user's session from the Supabase client
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-    if (!userPrompt) {
-      return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
+    if (sessionError || !session) {
+      return NextResponse.json({ error: 'Unauthorized: Could not get session' }, { status: 401 });
     }
 
-    // 1. Get the user's session from the request cookies
-    const cookieStore = await cookies();
-    const token = cookieStore.get('sb-access-token')?.value; // This is an example, cookie name might differ
+    const user = session.user;
 
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized: No session found' }, { status: 401 });
-    }
+    // We still need an admin client to bypass RLS and update usage counts
+    const supabaseAdmin = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        {
+          cookies: {
+            get(name: string) {
+              return cookieStore.get(name)?.value
+            },
+          },
+        }
+    );
 
-    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
-
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized: Invalid token' }, { status: 401 });
-    }
-
-    // 2. Check the user's current usage
+    // 2. Check the user's current usage from the 'profiles' table
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('usage_count, plan_type')
@@ -53,10 +63,16 @@ export async function POST(req: Request) {
 
     // 3. Enforce usage limit for free users
     if (profile.plan_type === 'free' && profile.usage_count >= USAGE_LIMIT) {
-      return NextResponse.json({ error: `You have reached your limit of ${USAGE_LIMIT} free generations.` }, { status: 429 }); // 429: Too Many Requests
+      return NextResponse.json({ error: `You have reached your limit of ${USAGE_LIMIT} free generations.` }, { status: 429 });
+    }
+    
+    // 4. Get the user's prompt from the request body
+    const { userPrompt } = await req.json();
+    if (!userPrompt) {
+      return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
     }
 
-    // 4. If usage is fine, proceed to call OpenAI
+    // 5. If usage is fine, proceed to call OpenAI
     const systemPrompt = `
       You are an expert in Excel and Google Sheets formulas.
       Your task is to take a user's natural language request and return ONLY a JSON object with two keys: "formula" and "explanation".
@@ -75,12 +91,11 @@ export async function POST(req: Request) {
     });
     
     const aiResponse = completion.choices[0].message.content;
-
     if (!aiResponse) {
       return NextResponse.json({ error: 'Failed to get response from AI' }, { status: 500 });
     }
 
-    // 5. If OpenAI call is successful, increment usage count
+    // 6. If OpenAI call is successful, increment usage count
     if (profile.plan_type === 'free') {
       const { error: updateError } = await supabaseAdmin
         .from('profiles')
@@ -89,11 +104,10 @@ export async function POST(req: Request) {
       
       if (updateError) {
         console.error('Failed to update usage count:', updateError);
-        // Don't block the user, but log the error.
       }
     }
 
-    // 6. Return the successful response
+    // 7. Return the successful response
     return NextResponse.json(JSON.parse(aiResponse));
 
   } catch (error) {
