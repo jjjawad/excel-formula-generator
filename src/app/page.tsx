@@ -148,7 +148,9 @@ export default function HomePage() {
             <div className="w-full max-w-3xl text-center mb-6">
               {renderUsageCounter()}
             </div>
-            <Generator />
+            <Generator
+              onGenerationSuccess={() => setProfile(prev => prev ? { ...prev, usage_count: prev.usage_count + 1 } : null)}
+            />
           </div>
         )}
       </div>

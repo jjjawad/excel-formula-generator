@@ -2,7 +2,11 @@
 
 import { useState } from 'react';
 
-export default function Generator() {
+interface GeneratorProps {
+  onGenerationSuccess: () => void;
+}
+
+export default function Generator({ onGenerationSuccess }: GeneratorProps) {
   const [prompt, setPrompt] = useState('');
   const [formula, setFormula] = useState('');
   const [explanation, setExplanation] = useState('');
@@ -38,6 +42,7 @@ export default function Generator() {
       const data = await response.json();
       setFormula(data.formula);
       setExplanation(data.explanation);
+      onGenerationSuccess();
 
     } catch (err: any) {
       setError(err.message);
