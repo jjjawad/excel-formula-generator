@@ -30,6 +30,7 @@ export async function POST(req: Request) {
     const userId = session.metadata?.user_id;
 
     if (!userId) {
+      console.error('Webhook Error: No user_id in metadata');
       return NextResponse.json({ error: 'Webhook Error: No user_id in metadata' }, { status: 400 });
     }
 
