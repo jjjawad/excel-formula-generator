@@ -182,7 +182,7 @@ export function FormulaGenerator() {
               Your AI Formula Assistant
             </h1>
             <p className="max-w-[700px] text-lg text-muted-foreground sm:text-xl mt-4">
-              Describe your goal in plain English. We'll generate the formula and explain how it works.
+              Describe your goal in plain English. We&apos;ll generate the formula and explain how it works.
             </p>
         </div>
         
