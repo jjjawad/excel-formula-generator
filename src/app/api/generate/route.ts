@@ -1,78 +1,65 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
-// Initialize the OpenAI client
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-const USAGE_LIMIT = 10;
+const FREE_LIMIT = 5; // We use this limit for logged-in free users
 
 export async function POST(req: Request) {
   const cookieStore = await cookies();
-
-  // Create a Supabase client configured to use cookies. This is the modern way to handle auth in API routes.
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value
-        },
-      },
-    }
+    { cookies: { get(name: string) { return cookieStore.get(name)?.value } } }
   );
 
   try {
-    // 1. Get the user's session from the Supabase client
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    const { data: { session } } = await supabase.auth.getSession();
 
-    if (sessionError || !session) {
-      return NextResponse.json({ error: 'Unauthorized: Could not get session' }, { status: 401 });
-    }
+    // If a user session exists, perform checks and increment usage
+    if (session) {
+      const user = session.user;
 
-    const user = session.user;
-
-    // We still need an admin client to bypass RLS and update usage counts
-    const supabaseAdmin = createServerClient(
+      // Use admin client to bypass RLS for usage checks/updates
+      const supabaseAdmin = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_ROLE_KEY!,
-        {
-          cookies: {
-            get(name: string) {
-              return cookieStore.get(name)?.value
-            },
-          },
-        }
-    );
+        { cookies: { get(name: string) { return cookieStore.get(name)?.value } } }
+      );
 
-    // 2. Check the user's current usage from the 'profiles' table
-    const { data: profile, error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .select('usage_count, plan_type')
-      .eq('id', user.id)
-      .single();
+      const { data: profile, error: profileError } = await supabaseAdmin
+        .from('profiles')
+        .select('usage_count, plan_type')
+        .eq('id', user.id)
+        .single();
 
-    if (profileError || !profile) {
-      console.error('Profile fetch error:', profileError);
-      return NextResponse.json({ error: 'Could not retrieve user profile.' }, { status: 500 });
+      if (profileError) throw new Error('Could not retrieve user profile.');
+
+      if (profile.plan_type === 'free' && profile.usage_count >= FREE_LIMIT) {
+        return NextResponse.json({ error: `You have reached your limit of ${FREE_LIMIT} free generations.` }, { status: 429 });
+      }
+
+      // If checks pass, increment usage count for free users
+      if (profile.plan_type === 'free') {
+        await supabaseAdmin
+          .from('profiles')
+          .update({ usage_count: profile.usage_count + 1 })
+          .eq('id', user.id);
+      }
     }
-
-    // 3. Enforce usage limit for free users
-    if (profile.plan_type === 'free' && profile.usage_count >= USAGE_LIMIT) {
-      return NextResponse.json({ error: `You have reached your limit of ${USAGE_LIMIT} free generations.` }, { status: 429 });
-    }
+    // If no session, it's a guest. The frontend has already checked their local credits. We proceed.
     
-    // 4. Get the user's prompt from the request body
+    // --- Common logic for both guests and users ---
+
     const { userPrompt } = await req.json();
     if (!userPrompt) {
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
     }
 
-    // 5. If usage is fine, proceed to call OpenAI
     const systemPrompt = `
       You are an expert in Excel and Google Sheets formulas.
       Your task is to take a user's natural language request and return ONLY a JSON object with two keys: "formula" and "explanation".
@@ -95,23 +82,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Failed to get response from AI' }, { status: 500 });
     }
 
-    // 6. If OpenAI call is successful, increment usage count
-    if (profile.plan_type === 'free') {
-      const { error: updateError } = await supabaseAdmin
-        .from('profiles')
-        .update({ usage_count: profile.usage_count + 1 })
-        .eq('id', user.id);
-      
-      if (updateError) {
-        console.error('Failed to update usage count:', updateError);
-      }
-    }
-
-    // 7. Return the successful response
     return NextResponse.json(JSON.parse(aiResponse));
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in generate API route:', error);
-    return NextResponse.json({ error: 'An internal server error occurred' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'An internal server error occurred' }, { status: 500 });
   }
 } 
