@@ -19,10 +19,10 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <div className="flex min-h-screen flex-col">
+        <Toaster position="top-center" />
+        <div className="relative flex min-h-screen flex-col">
           {children}
         </div>
-        <Toaster />
       </body>
     </html>
   )

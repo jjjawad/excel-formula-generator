@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabaseClient';
 import type { Session, User, SupabaseClient } from '@supabase/supabase-js';
 import { FormulaGenerator } from '@/components/FormulaGenerator';
 import AuthForm from '@/components/Auth';
+import Header from '@/components/Header';
 
 interface Profile {
   usage_count: number;
@@ -79,37 +80,37 @@ export default function HomePage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center p-4 sm:p-24 bg-gray-50">
-      <div className="z-10 w-full max-w-5xl items-center justify-between text-sm">
-        <h1 className="text-4xl font-bold text-center text-gray-800">
-          AI-Powered Excel Formula Generator
-        </h1>
-        <p className="mt-2 text-center text-lg text-gray-600">
-          Turn your plain English instructions into powerful Excel and Google Sheets formulas.
-        </p>
+    <div className="flex min-h-screen w-full flex-col">
+      <Header session={session} onSignOut={() => supabase?.auth.signOut()} />
+      <div className="absolute inset-0 -z-10 h-full w-full bg-white bg-[linear-gradient(to_right,#f0f0f0_1px,transparent_1px),linear-gradient(to_bottom,#f0f0f0_1px,transparent_1px)] bg-[size:6rem_4rem]">
+        <div className="absolute bottom-0 left-0 right-0 top-0 bg-[radial-gradient(circle_800px_at_100%_200px,#d5c5ff,transparent)]"></div>
       </div>
-
-      <div className="mt-12 w-full">
+      
+      <main className="flex-1">
         {!session ? (
-          <AuthForm />
-        ) : (
-          <div className="flex flex-col items-center">
-            <div className="w-full max-w-3xl flex justify-between items-center mb-4">
-              <span className="text-gray-700">Logged in as: <strong>{session.user.email}</strong></span>
-              <button
-                onClick={() => supabase?.auth.signOut()}
-                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
-              >
-                Sign Out
-              </button>
-            </div>
-            <FormulaGenerator
-              profile={profile}
-              onGenerationSuccess={() => setProfile(prev => prev ? { ...prev, usage_count: prev.usage_count + 1 } : null)}
-            />
+          <div className="container flex h-[calc(100vh-4rem)] items-center justify-center">
+            <section className="grid items-center gap-6 pb-8 text-center">
+              <div className="mx-auto flex max-w-[980px] flex-col items-start gap-2">
+                <h1 className="text-3xl font-extrabold leading-tight tracking-tighter sm:text-4xl md:text-5xl lg:text-6xl">
+                  Generate Excel & Google Sheets formulas <br className="hidden sm:inline" />
+                  in seconds with AI.
+                </h1>
+                <p className="max-w-[700px] text-lg text-muted-foreground sm:text-xl">
+                  Stop wasting time searching for the right formula. Just describe what you need, and let AI handle the rest.
+                </p>
+              </div>
+              <div className="mx-auto w-full max-w-sm pt-4">
+                <AuthForm />
+              </div>
+            </section>
           </div>
+        ) : (
+          <FormulaGenerator 
+            profile={profile} 
+            onGenerationSuccess={() => setProfile(prev => prev ? { ...prev, usage_count: prev.usage_count + 1 } : null)} 
+          />
         )}
-      </div>
-    </main>
+      </main>
+    </div>
   );
 } 
